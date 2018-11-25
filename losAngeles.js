@@ -1,19 +1,22 @@
-var request = require('request');
-var http = require('http');
+const axios = require('axios');
 
-var server = http.createServer(function (req, res) {
-    const args = process.argv;    
-    request('http://maps.assessor.lacounty.gov/Geocortex/Essentials/REST/sites/PAIS/SQLAddressSearch?f=json&SANUM=' + args[2], function (error, response, body) {
-        console.log('error:', error); // Print the error if one occurred
-        console.log('statusCode:', response && response.statusCode); // Print the response status code if a response was received
-        console.log('body:', body); // Print the HTML for the Google homepage.
-        body = JSON.parse(body)
-        request('http://maps.assessor.lacounty.gov/Geocortex/Essentials/REST/sites/PAIS/SQLAINSearch?f=json&AIN=' + body.results.AddressResults[0].AIN, function name(error, response, body) {
-            console.log("2nd body--------", body);
-            res.end(body);
-        })
-    });
-    /* res.writeHead(200);
-    res.end('Hi everybody!'); */
-});
-server.listen(8080);
+module.exports = async function getGIS(addressInput) {
+    console.log("server started")
+    const url = 'http://maps.assessor.lacounty.gov/Geocortex/Essentials/REST/sites/PAIS/SQLAddressSearch?f=json&SANUM=' + addressInput;
+    const response = await axios.get(url);
+    console.log("response---", response);
+     const requiredResponseFields = response && response.data && response.data.results && response.data.results.AddressResults
+     console.log("fields", requiredResponseFields);
+
+    const response2 = await axios.get('http://maps.assessor.lacounty.gov/Geocortex/Essentials/REST/sites/PAIS/SQLAINSearch?f=json&AIN=' + requiredResponseFields[0].AIN)
+    const responseFields = response2 && response2.data && response2.data.results;
+    let formattedAddress = {
+        taxRateArea: responseFields.ParcelDetails.TRA,
+        TotalValue: responseFields.ParcelDetails.LANDVAL,
+        Type: responseFields.ParcelDetails.UseType_Label
+    }
+
+    return formattedAddress;
+    
+   
+};
